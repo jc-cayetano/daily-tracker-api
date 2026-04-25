@@ -7,12 +7,23 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { User } from '../auth/entities/user.entity';
 import { Task, TaskStatus } from '../tasks/entities/task.entity';
 import { TimeLog, TimeLogStatus } from '../time-logs/entities/time-log.entity';
+import { EventPublisherService } from '../events/event-publisher.service';
 import { AssignTaskDto } from './dto/assign-task.dto';
 import { CreateProjectTaskDto } from './dto/create-project-task.dto';
 import { ProjectMember, ProjectRole } from './entities/project-member.entity';
 import { Project, ProjectStatus } from './entities/project.entity';
+
+export interface TaskListItem {
+  id: string;
+  name: string;
+  assignee: { id: string; username: string } | null;
+  status: TaskStatus;
+  isInProgress: boolean;
+  sessionCount: number;
+}
 
 @Injectable()
 export class ProjectTasksService {
@@ -25,6 +36,7 @@ export class ProjectTasksService {
     private readonly memberRepository: Repository<ProjectMember>,
     @InjectRepository(TimeLog)
     private readonly timeLogRepository: Repository<TimeLog>,
+    private readonly eventPublisher: EventPublisherService,
   ) {}
 
   async create(projectId: string, dto: CreateProjectTaskDto, userId: string) {
@@ -68,6 +80,25 @@ export class ProjectTasksService {
       }),
     );
 
+    const assignee = await this.taskRepository.findOne({
+      where: { id: task.id },
+      relations: ['assignee'],
+    });
+
+    this.eventPublisher.publishToProject(projectId, 'task:created', {
+      projectId,
+      task: {
+        id: task.id,
+        name: task.name,
+        assignee: assignee?.assignee
+          ? { id: assignee.assignee.id, username: assignee.assignee.username }
+          : null,
+        status: task.status,
+        isInProgress: false,
+        sessionCount: 0,
+      },
+    });
+
     return {
       id: task.id,
       name: task.name,
@@ -87,7 +118,7 @@ export class ProjectTasksService {
       order: { createdAt: 'DESC' },
     });
 
-    const result: any[] = [];
+    const result: TaskListItem[] = [];
     for (const task of tasks) {
       const sessionCount = await this.timeLogRepository.count({
         where: { task: { id: task.id }, status: TimeLogStatus.COMPLETED },
@@ -139,7 +170,20 @@ export class ProjectTasksService {
 
     if (!task) throw new NotFoundException('Task not found');
 
-    task.assignee = { id: dto.assigneeId } as any;
+    const activeLog = await this.timeLogRepository.findOne({
+      where: {
+        task: { id: taskId },
+        status: In([TimeLogStatus.RUNNING, TimeLogStatus.PAUSED]),
+      },
+    });
+
+    if (activeLog) {
+      throw new BadRequestException(
+        'Cannot reassign a task with an active timer',
+      );
+    }
+
+    task.assignee = { id: dto.assigneeId } as User;
     await this.taskRepository.save(task);
 
     return { id: task.id, assigneeId: dto.assigneeId };
@@ -164,6 +208,11 @@ export class ProjectTasksService {
 
     task.status = TaskStatus.ARCHIVED;
     await this.taskRepository.save(task);
+
+    this.eventPublisher.publishToProject(projectId, 'task:archived', {
+      projectId,
+      taskId,
+    });
 
     return { id: task.id, status: task.status };
   }

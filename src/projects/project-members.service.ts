@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { EventPublisherService } from '../events/event-publisher.service';
 import { AddMemberDto } from './dto/add-member.dto';
 import { UpdateLeaveRequestDto } from './dto/update-leave-request.dto';
 import { ProjectMember, ProjectRole } from './entities/project-member.entity';
@@ -21,6 +22,7 @@ export class ProjectMembersService {
     private readonly memberRepository: Repository<ProjectMember>,
     @InjectRepository(LeaveRequest)
     private readonly leaveRequestRepository: Repository<LeaveRequest>,
+    private readonly eventPublisher: EventPublisherService,
   ) {}
 
   async addMember(projectId: string, dto: AddMemberDto, userId: string) {
@@ -42,6 +44,22 @@ export class ProjectMembersService {
       }),
     );
 
+    const memberWithUser = await this.memberRepository.findOne({
+      where: { id: member.id },
+      relations: ['user'],
+    });
+
+    this.eventPublisher.publishToProject(projectId, 'member:added', {
+      projectId,
+      member: {
+        id: member.id,
+        userId: dto.userId,
+        username: memberWithUser?.user.username ?? '',
+        role: member.role,
+        joinedAt: member.joinedAt,
+      },
+    });
+
     return {
       id: member.id,
       userId: dto.userId,
@@ -55,6 +73,7 @@ export class ProjectMembersService {
 
     const member = await this.memberRepository.findOne({
       where: { project: { id: projectId }, user: { id: targetUserId } },
+      relations: ['user'],
     });
 
     if (!member) throw new NotFoundException('Member not found');
@@ -63,7 +82,14 @@ export class ProjectMembersService {
       throw new ForbiddenException('Cannot remove the PM from the project');
     }
 
+    const username = member.user.username;
     await this.memberRepository.remove(member);
+
+    this.eventPublisher.publishToProject(projectId, 'member:removed', {
+      projectId,
+      userId: targetUserId,
+      username,
+    });
   }
 
   async listMembers(projectId: string, userId: string) {
@@ -158,32 +184,28 @@ export class ProjectMembersService {
     await this.leaveRequestRepository.save(request);
 
     if (dto.status === 'approved') {
-      const member = await this.memberRepository.findOne({
-        where: {
-          project: { id: projectId },
-          user: { id: request.user?.id },
-        },
+      const reqWithUser = await this.leaveRequestRepository.findOne({
+        where: { id: requestId },
         relations: ['user'],
       });
 
-      if (!member) {
-        const reqWithUser = await this.leaveRequestRepository.findOne({
-          where: { id: requestId },
-          relations: ['user'],
+      if (reqWithUser) {
+        const memberToRemove = await this.memberRepository.findOne({
+          where: {
+            project: { id: projectId },
+            user: { id: reqWithUser.user.id },
+          },
         });
-        if (reqWithUser) {
-          const memberToRemove = await this.memberRepository.findOne({
-            where: {
-              project: { id: projectId },
-              user: { id: reqWithUser.user.id },
-            },
-          });
-          if (memberToRemove) {
-            await this.memberRepository.remove(memberToRemove);
-          }
+
+        if (memberToRemove) {
+          await this.memberRepository.remove(memberToRemove);
         }
-      } else {
-        await this.memberRepository.remove(member);
+
+        this.eventPublisher.publishToProject(projectId, 'member:removed', {
+          projectId,
+          userId: reqWithUser.user.id,
+          username: reqWithUser.user.username,
+        });
       }
     }
 

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { EventPublisherService } from '../events/event-publisher.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { Project, ProjectStatus } from './entities/project.entity';
 import { ProjectMember, ProjectRole } from './entities/project-member.entity';
@@ -16,6 +17,7 @@ export class ProjectsService {
     private readonly projectRepository: Repository<Project>,
     @InjectRepository(ProjectMember)
     private readonly memberRepository: Repository<ProjectMember>,
+    private readonly eventPublisher: EventPublisherService,
   ) {}
 
   async create(dto: CreateProjectDto, userId: string) {
@@ -104,6 +106,12 @@ export class ProjectsService {
     const project = await this.findProjectAsPm(id, userId);
     project.status = ProjectStatus.CLOSED;
     await this.projectRepository.save(project);
+
+    this.eventPublisher.publishToProject(id, 'project:status-changed', {
+      projectId: id,
+      status: 'closed',
+    });
+
     return { id: project.id, status: project.status };
   }
 
@@ -111,6 +119,12 @@ export class ProjectsService {
     const project = await this.findProjectAsPm(id, userId);
     project.status = ProjectStatus.OPEN;
     await this.projectRepository.save(project);
+
+    this.eventPublisher.publishToProject(id, 'project:status-changed', {
+      projectId: id,
+      status: 'open',
+    });
+
     return { id: project.id, status: project.status };
   }
 
