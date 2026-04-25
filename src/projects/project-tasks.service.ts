@@ -27,11 +27,7 @@ export class ProjectTasksService {
     private readonly timeLogRepository: Repository<TimeLog>,
   ) {}
 
-  async create(
-    projectId: string,
-    dto: CreateProjectTaskDto,
-    userId: string,
-  ) {
+  async create(projectId: string, dto: CreateProjectTaskDto, userId: string) {
     const { project, membership } = await this.validateAccess(
       projectId,
       userId,
@@ -43,11 +39,10 @@ export class ProjectTasksService {
 
     const assigneeId = dto.assigneeId || userId;
 
-    if (
-      membership.role !== ProjectRole.PM &&
-      assigneeId !== userId
-    ) {
-      throw new ForbiddenException('Members can only assign tasks to themselves');
+    if (membership.role !== ProjectRole.PM && assigneeId !== userId) {
+      throw new ForbiddenException(
+        'Members can only assign tasks to themselves',
+      );
     }
 
     if (dto.assigneeId) {
@@ -59,7 +54,9 @@ export class ProjectTasksService {
     });
 
     if (existing) {
-      throw new ConflictException('Task with this name already exists in this project');
+      throw new ConflictException(
+        'Task with this name already exists in this project',
+      );
     }
 
     const task = await this.taskRepository.save(

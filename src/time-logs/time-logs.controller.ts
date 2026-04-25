@@ -15,18 +15,21 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { Permissions } from '../auth/decorators/permissions.decorator';
 import { CreateTimeLogDto } from './dto/create-time-log.dto';
 import { UpdateTimeLogDto } from './dto/update-time-log.dto';
 import { TimeLogsService } from './time-logs.service';
 
 @ApiTags('Time Logs')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('time-logs')
 export class TimeLogsController {
   constructor(private readonly timeLogsService: TimeLogsService) {}
 
   @Post()
+  @Permissions('time-log:create')
   @ApiOperation({ summary: 'Start a new time log session' })
   @ApiResponse({ status: 201, description: 'Session started' })
   @ApiResponse({ status: 409, description: 'Active session already exists' })
@@ -35,6 +38,7 @@ export class TimeLogsController {
   }
 
   @Patch(':id/pause')
+  @Permissions('time-log:manage')
   @ApiOperation({ summary: 'Pause the active session' })
   @ApiResponse({ status: 200, description: 'Session paused' })
   @ApiResponse({ status: 400, description: 'Session is not running' })
@@ -43,6 +47,7 @@ export class TimeLogsController {
   }
 
   @Patch(':id/resume')
+  @Permissions('time-log:manage')
   @ApiOperation({ summary: 'Resume a paused session' })
   @ApiResponse({ status: 200, description: 'Session resumed' })
   @ApiResponse({ status: 400, description: 'Session is not paused' })
@@ -51,6 +56,7 @@ export class TimeLogsController {
   }
 
   @Patch(':id/stop')
+  @Permissions('time-log:manage')
   @ApiOperation({ summary: 'Stop and finalize the session' })
   @ApiResponse({ status: 200, description: 'Session stopped' })
   @ApiResponse({ status: 400, description: 'Session is already completed' })
@@ -59,6 +65,7 @@ export class TimeLogsController {
   }
 
   @Patch(':id')
+  @Permissions('time-log:manage')
   @ApiOperation({ summary: 'Add or update session description' })
   @ApiResponse({ status: 200, description: 'Description updated' })
   @ApiResponse({ status: 400, description: 'Session is not completed' })
@@ -71,6 +78,7 @@ export class TimeLogsController {
   }
 
   @Get('active')
+  @Permissions('time-log:read')
   @ApiOperation({ summary: 'Get current active or paused session' })
   @ApiResponse({ status: 200, description: 'Active session or null' })
   findActive(@Request() req: any) {

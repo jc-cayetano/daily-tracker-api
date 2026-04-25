@@ -4,7 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { LoginDto } from './dto/login.dto';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
+import { ROLE_PERMISSIONS } from './permissions';
 
 @Injectable()
 export class AuthService {
@@ -23,13 +24,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { sub: user.id, username: user.username };
+    const payload = { sub: user.id, username: user.username, role: user.role };
     const token = await this.jwtService.signAsync(payload);
 
-    return { token, user: { id: user.id, username: user.username } };
+    return { token };
   }
 
-  getProfile(userId: string, username: string) {
-    return { id: userId, username };
+  getProfile(userId: string, username: string, role: UserRole) {
+    const permissions: string[] = ROLE_PERMISSIONS[role] ?? [];
+    return { id: userId, username, role, permissions };
   }
 }

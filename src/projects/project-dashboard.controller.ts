@@ -13,12 +13,15 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Permissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-request.interface';
 import { ProjectDashboardService } from './project-dashboard.service';
 
 @ApiTags('Project Dashboard')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('projects/:projectId/dashboard')
 export class ProjectDashboardController {
   constructor(
@@ -26,6 +29,7 @@ export class ProjectDashboardController {
   ) {}
 
   @Get()
+  @Permissions('dashboard:read')
   @ApiOperation({ summary: 'Get PM project monitoring dashboard' })
   @ApiQuery({ name: 'from', required: false, description: 'YYYY-MM-DD' })
   @ApiQuery({ name: 'to', required: false, description: 'YYYY-MM-DD' })
@@ -35,7 +39,7 @@ export class ProjectDashboardController {
     @Param('projectId') projectId: string,
     @Query('from') from: string,
     @Query('to') to: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.projectDashboardService.getDashboard(
       projectId,

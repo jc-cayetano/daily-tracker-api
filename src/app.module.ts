@@ -21,8 +21,7 @@ import { UsersModule } from './users/users.module';
             type: 'postgres',
             url: databaseUrl,
             autoLoadEntities: true,
-            synchronize:
-              configService.get<string>('NODE_ENV') !== 'production',
+            synchronize: configService.get<string>('NODE_ENV') !== 'production',
           };
         }
 
@@ -34,8 +33,7 @@ import { UsersModule } from './users/users.module';
           password: configService.get<string>('DB_PASSWORD'),
           database: configService.get<string>('DB_NAME'),
           autoLoadEntities: true,
-          synchronize:
-            configService.get<string>('NODE_ENV') !== 'production',
+          synchronize: configService.get<string>('NODE_ENV') !== 'production',
         };
       },
     }),

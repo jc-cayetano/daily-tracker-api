@@ -7,10 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { Project, ProjectStatus } from './entities/project.entity';
-import {
-  ProjectMember,
-  ProjectRole,
-} from './entities/project-member.entity';
+import { ProjectMember, ProjectRole } from './entities/project-member.entity';
 
 @Injectable()
 export class ProjectsService {

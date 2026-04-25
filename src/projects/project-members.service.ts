@@ -8,10 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AddMemberDto } from './dto/add-member.dto';
 import { UpdateLeaveRequestDto } from './dto/update-leave-request.dto';
-import {
-  ProjectMember,
-  ProjectRole,
-} from './entities/project-member.entity';
+import { ProjectMember, ProjectRole } from './entities/project-member.entity';
 import {
   LeaveRequest,
   LeaveRequestStatus,
@@ -53,11 +50,7 @@ export class ProjectMembersService {
     };
   }
 
-  async removeMember(
-    projectId: string,
-    targetUserId: string,
-    userId: string,
-  ) {
+  async removeMember(projectId: string, targetUserId: string, userId: string) {
     await this.requirePm(projectId, userId);
 
     const member = await this.memberRepository.findOne({

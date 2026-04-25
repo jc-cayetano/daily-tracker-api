@@ -2,10 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectMember } from '../projects/entities/project-member.entity';
-import {
-  TimeLog,
-  TimeLogStatus,
-} from '../time-logs/entities/time-log.entity';
+import { TimeLog, TimeLogStatus } from '../time-logs/entities/time-log.entity';
 
 @Injectable()
 export class DailySummaryService {
@@ -37,7 +34,10 @@ export class DailySummaryService {
         id: string | null;
         name: string | null;
         totalHours: number;
-        tasks: Map<string, { id: string; name: string; totalHours: number; sessions: any[] }>;
+        tasks: Map<
+          string,
+          { id: string; name: string; totalHours: number; sessions: any[] }
+        >;
       }
     >();
 
