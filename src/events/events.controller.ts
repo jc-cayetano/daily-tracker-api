@@ -26,8 +26,8 @@ export class EventsController {
   @ApiQuery({ name: 'token', required: true, description: 'JWT token' })
   @ApiResponse({ status: 200, description: 'SSE stream established' })
   stream(@Request() req: AuthenticatedRequest): Observable<MessageEvent> {
-    return from(this.eventsService.createStream(req.user.id, req.user.role)).pipe(
-      switchMap((observable) => observable),
-    );
+    return from(
+      this.eventsService.createStream(req.user.id, req.user.role),
+    ).pipe(switchMap((observable) => observable));
   }
 }
