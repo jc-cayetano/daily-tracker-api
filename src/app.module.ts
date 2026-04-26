@@ -3,7 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { DailySummaryModule } from './daily-summary/daily-summary.module';
+import { EventsModule } from './events/events.module';
 import { ProjectsModule } from './projects/projects.module';
+import { RedisModule } from './redis/redis.module';
 import { TasksModule } from './tasks/tasks.module';
 import { TimeLogsModule } from './time-logs/time-logs.module';
 import { UsersModule } from './users/users.module';
@@ -21,8 +23,7 @@ import { UsersModule } from './users/users.module';
             type: 'postgres',
             url: databaseUrl,
             autoLoadEntities: true,
-            synchronize:
-              configService.get<string>('NODE_ENV') !== 'production',
+            synchronize: configService.get<string>('NODE_ENV') !== 'production',
           };
         }
 
@@ -34,8 +35,7 @@ import { UsersModule } from './users/users.module';
           password: configService.get<string>('DB_PASSWORD'),
           database: configService.get<string>('DB_NAME'),
           autoLoadEntities: true,
-          synchronize:
-            configService.get<string>('NODE_ENV') !== 'production',
+          synchronize: configService.get<string>('NODE_ENV') !== 'production',
         };
       },
     }),
@@ -45,6 +45,8 @@ import { UsersModule } from './users/users.module';
     DailySummaryModule,
     ProjectsModule,
     UsersModule,
+    RedisModule,
+    EventsModule,
   ],
 })
 export class AppModule {}
