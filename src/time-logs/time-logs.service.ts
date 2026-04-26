@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { User } from '../auth/entities/user.entity';
+import { EventPublisherService } from '../events/event-publisher.service';
 import { Task } from '../tasks/entities/task.entity';
 import { Project, ProjectStatus } from '../projects/entities/project.entity';
 import { CreateTimeLogDto } from './dto/create-time-log.dto';
@@ -21,6 +23,9 @@ export class TimeLogsService {
     private readonly taskRepository: Repository<Task>,
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly eventPublisher: EventPublisherService,
   ) {}
 
   async start(dto: CreateTimeLogDto, userId: string) {
@@ -56,6 +61,35 @@ export class TimeLogsService {
     });
 
     const saved = await this.timeLogRepository.save(timeLog);
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const eventData = {
+      projectId: task.project?.id ?? null,
+      taskId: dto.taskId,
+      userId,
+      username: user?.username ?? '',
+    };
+
+    if (task.project) {
+      this.eventPublisher.publishToProject(
+        task.project.id,
+        'timer:started',
+        eventData,
+      );
+      if (task.project.status === ProjectStatus.WORK_IN_PROGRESS) {
+        this.eventPublisher.publishToProject(
+          task.project.id,
+          'project:status-changed',
+          { projectId: task.project.id, status: 'work_in_progress' },
+        );
+      }
+    } else {
+      this.eventPublisher.publishToUser(userId, 'personal:timer:started', {
+        taskId: dto.taskId,
+        userId,
+      });
+    }
+
     return {
       id: saved.id,
       taskId: dto.taskId,
@@ -73,7 +107,11 @@ export class TimeLogsService {
 
     timeLog.status = TimeLogStatus.PAUSED;
     timeLog.pausedAt = new Date();
-    return this.timeLogRepository.save(timeLog);
+    const saved = await this.timeLogRepository.save(timeLog);
+
+    await this.publishTimerEvent(id, userId, 'timer:paused');
+
+    return saved;
   }
 
   async resume(id: string, userId: string): Promise<TimeLog> {
@@ -85,7 +123,11 @@ export class TimeLogsService {
 
     timeLog.status = TimeLogStatus.RUNNING;
     timeLog.resumedAt = new Date();
-    return this.timeLogRepository.save(timeLog);
+    const saved = await this.timeLogRepository.save(timeLog);
+
+    await this.publishTimerEvent(id, userId, 'timer:resumed');
+
+    return saved;
   }
 
   async stop(id: string, userId: string): Promise<TimeLog> {
@@ -100,7 +142,34 @@ export class TimeLogsService {
     timeLog.duration = Math.floor(
       (timeLog.stoppedAt.getTime() - timeLog.startedAt.getTime()) / 1000,
     );
-    return this.timeLogRepository.save(timeLog);
+    const saved = await this.timeLogRepository.save(timeLog);
+
+    const fullLog = await this.timeLogRepository.findOne({
+      where: { id },
+      relations: ['task', 'task.project', 'user'],
+    });
+
+    if (fullLog?.task.project) {
+      this.eventPublisher.publishToProject(
+        fullLog.task.project.id,
+        'timer:stopped',
+        {
+          projectId: fullLog.task.project.id,
+          taskId: fullLog.task.id,
+          userId,
+          username: fullLog.user.username,
+          duration: saved.duration,
+        },
+      );
+    } else {
+      this.eventPublisher.publishToUser(userId, 'personal:timer:stopped', {
+        taskId: fullLog?.task.id ?? '',
+        userId,
+        duration: saved.duration,
+      });
+    }
+
+    return saved;
   }
 
   async findActive(userId: string): Promise<TimeLog | null> {
@@ -138,8 +207,6 @@ export class TimeLogsService {
     if (!timeLog) throw new NotFoundException('Time log not found');
     return timeLog;
   }
-<<<<<<< Updated upstream
-=======
 
   private async publishTimerEvent(
     timeLogId: string,
@@ -154,13 +221,16 @@ export class TimeLogsService {
     if (!fullLog) return;
 
     if (fullLog.task.project) {
-      this.eventPublisher.publishToProject(fullLog.task.project.id, eventType, {
-        projectId: fullLog.task.project.id,
-        taskId: fullLog.task.id,
-        userId,
-        username: fullLog.user.username,
-      });
+      this.eventPublisher.publishToProject(
+        fullLog.task.project.id,
+        eventType,
+        {
+          projectId: fullLog.task.project.id,
+          taskId: fullLog.task.id,
+          userId,
+          username: fullLog.user.username,
+        },
+      );
     }
   }
->>>>>>> Stashed changes
 }

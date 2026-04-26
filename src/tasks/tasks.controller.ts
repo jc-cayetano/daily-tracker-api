@@ -17,18 +17,21 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { Permissions } from '../auth/decorators/permissions.decorator';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { TaskStatus } from './entities/task.entity';
 import { TasksService } from './tasks.service';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('tasks')
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
+  @Permissions('task:create')
   @ApiOperation({ summary: 'Create a new task' })
   @ApiResponse({ status: 201, description: 'Task created' })
   @ApiResponse({ status: 409, description: 'Duplicate task name' })
@@ -37,6 +40,7 @@ export class TasksController {
   }
 
   @Get()
+  @Permissions('task:read')
   @ApiOperation({ summary: 'List tasks, optionally filtered by status' })
   @ApiQuery({ name: 'status', enum: TaskStatus, required: false })
   @ApiResponse({ status: 200, description: 'List of tasks' })
@@ -45,6 +49,7 @@ export class TasksController {
   }
 
   @Patch(':id/archive')
+  @Permissions('task:archive')
   @ApiOperation({ summary: 'Archive a task' })
   @ApiResponse({ status: 200, description: 'Task archived' })
   @ApiResponse({ status: 404, description: 'Task not found' })
@@ -53,6 +58,7 @@ export class TasksController {
   }
 
   @Patch(':id/restore')
+  @Permissions('task:restore')
   @ApiOperation({ summary: 'Restore an archived task' })
   @ApiResponse({ status: 200, description: 'Task restored' })
   @ApiResponse({ status: 400, description: 'Task is already active' })

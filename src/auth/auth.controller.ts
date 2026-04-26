@@ -17,6 +17,9 @@ import {
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { PermissionsGuard } from './guards/permissions.guard';
+import { Permissions } from './decorators/permissions.decorator';
+import type { AuthenticatedRequest } from './interfaces/authenticated-request.interface';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -33,11 +36,16 @@ export class AuthController {
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('auth:profile')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get current authenticated user profile' })
-  @ApiResponse({ status: 200, description: 'User profile' })
-  getProfile(@Request() req: any) {
-    return this.authService.getProfile(req.user.id, req.user.username);
+  @ApiOperation({ summary: 'Get current user identity and permissions' })
+  @ApiResponse({ status: 200, description: 'User identity with permissions' })
+  getProfile(@Request() req: AuthenticatedRequest) {
+    return this.authService.getProfile(
+      req.user.id,
+      req.user.username,
+      req.user.role,
+    );
   }
 }
