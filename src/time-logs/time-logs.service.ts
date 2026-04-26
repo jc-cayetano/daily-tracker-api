@@ -138,4 +138,29 @@ export class TimeLogsService {
     if (!timeLog) throw new NotFoundException('Time log not found');
     return timeLog;
   }
+<<<<<<< Updated upstream
+=======
+
+  private async publishTimerEvent(
+    timeLogId: string,
+    userId: string,
+    eventType: string,
+  ): Promise<void> {
+    const fullLog = await this.timeLogRepository.findOne({
+      where: { id: timeLogId },
+      relations: ['task', 'task.project', 'user'],
+    });
+
+    if (!fullLog) return;
+
+    if (fullLog.task.project) {
+      this.eventPublisher.publishToProject(fullLog.task.project.id, eventType, {
+        projectId: fullLog.task.project.id,
+        taskId: fullLog.task.id,
+        userId,
+        username: fullLog.user.username,
+      });
+    }
+  }
+>>>>>>> Stashed changes
 }
