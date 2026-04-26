@@ -1,7 +1,7 @@
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
-import { User } from '../auth/entities/user.entity';
+import { User, UserRole } from '../auth/entities/user.entity';
 
 dotenv.config();
 
@@ -17,9 +17,9 @@ const dataSource = new DataSource({
 });
 
 const users = [
-  { username: 'admin', password: 'password123' },
-  { username: 'john', password: 'password123' },
-  { username: 'jane', password: 'password123' },
+  { username: 'admin', password: 'password123', role: UserRole.ADMIN },
+  { username: 'john', password: 'password123', role: UserRole.PROJECT_MANAGER },
+  { username: 'jane', password: 'password123', role: UserRole.TEAM_MEMBER },
 ];
 
 async function seed() {
@@ -37,11 +37,18 @@ async function seed() {
         userRepository.create({
           username: user.username,
           password: hashedPassword,
+          role: user.role,
         }),
       );
-      console.log(`Seed user created: ${user.username} / ${user.password}`);
+      console.log(`Seed user created: ${user.username} (${user.role})`);
+    } else if (existing.role !== user.role) {
+      existing.role = user.role;
+      await userRepository.save(existing);
+      console.log(`Seed user updated: ${user.username} → ${user.role}`);
     } else {
-      console.log(`Seed user already exists: ${user.username}, skipping.`);
+      console.log(
+        `Seed user already exists: ${user.username} (${user.role}), skipping.`,
+      );
     }
   }
 
